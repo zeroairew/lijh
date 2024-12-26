@@ -8,29 +8,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Download ngrok
-      run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip -O ngrok.zip
-
-    - name: Extract ngrok
-      run: unzip ngrok.zip
-
-    - name: Auth
-      run: ./ngrok authtoken $NGROK_AUTH_TOKEN
-      env:
-        NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
-
-    - name: Enable Remote Desktop (xrdp)
+    - name: Install Dependencies
       run: |
-        sudo apt update
-        sudo apt install -y xrdp
+        sudo apt-get update
+        sudo apt-get install -y xrdp xfce4 xfce4-goodies unzip wget
+
+    - name: Configure xrdp
+      run: |
+        echo xfce4-session >~/.xsession
+        sudo sed -i 's/3389/3390/' /etc/xrdp/xrdp.ini
         sudo systemctl enable xrdp
         sudo systemctl start xrdp
 
+    - name: Download ngrok
+      run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip -O ngrok.zip
+    - name: Extract ngrok
+      run: unzip ngrok.zip -d ngrok
+    - name: Auth ngrok
+      run: ./ngrok/ngrok authtoken $NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
+
+    - name: Start Tunnel
+      run: ./ngrok/ngrok tcp 3390
+
     - name: Create LiteBase User
       run: |
-        sudo useradd -m -s /bin/bash litebase
-        echo "litebase:Lite@Base!123" | sudo chpasswd
+        sudo useradd -m litebase
+        echo 'litebase:Lite@Base!123' | sudo chpasswd
         sudo usermod -aG sudo litebase
-
-    - name: Create Tunnel
-      run: ./ngrok tcp 3389
