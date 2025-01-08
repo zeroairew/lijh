@@ -8,32 +8,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xrdp xfce4 xfce4-goodies unzip wget
-
-    - name: Configure xrdp
-      run: |
-        echo xfce4-session >~/.xsession
-        sudo sed -i 's/3389/3390/' /etc/xrdp/xrdp.ini
-        sudo systemctl enable xrdp
-        sudo systemctl start xrdp
-
     - name: Download ngrok
-      run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip -O ngrok.zip
+      run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip -O ngrok.zip
+
     - name: Extract ngrok
-      run: unzip ngrok.zip -d ngrok
-    - name: Auth ngrok
-      run: ./ngrok/ngrok authtoken $NGROK_AUTH_TOKEN
-      env:
-        NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
+      run: unzip ngrok.zip
 
-    - name: Start Tunnel
-      run: ./ngrok/ngrok tcp 3390
+    - name: Auth
+      run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Create LiteBase User
+    - name: Create a new user
       run: |
-        sudo useradd -m litebase
-        echo 'litebase:Lite@Base!123' | sudo chpasswd
+        sudo useradd -m -s /bin/bash litebase
+        echo "litebase:Lite@Base!123" | sudo chpasswd
         sudo usermod -aG sudo litebase
+
+    - name: Create Tunnel
+      run: nohup ./ngrok tcp 22 &
+
+    - name: Keep alive for maximum time
+      run: sleep 21600  # 6 hours
