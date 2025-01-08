@@ -23,7 +23,7 @@ steps:
 
 - name: Install eDEX-UI
   run: |
-    wget https://github.com/GitSquared/edex-ui/releases/download/v2.0.0/eDEX-UI-Linux-x64.AppImage -O edex-ui.AppImage
+    wget https://github.com/GitSquared/edex-ui/releases/download/v2.2.8/eDEX-UI-Linux-x86_64.AppImage -O edex-ui.AppImage
     chmod +x edex-ui.AppImage
     ./edex-ui.AppImage &
 
