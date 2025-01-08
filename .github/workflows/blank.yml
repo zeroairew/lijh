@@ -1,39 +1,48 @@
-runs-on: ubuntu-latest
+name: Setup eDEX-UI with ngrok
 
-steps:
-- name: Download ngrok
-  run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip -O ngrok.zip
+on:
+  push:
+    branches:
+      - main  # یا هر شاخه‌ای که می‌خواهید
 
-- name: Extract ngrok
-  run: unzip ngrok.zip
+jobs:
+  setup:
+    runs-on: ubuntu-latest
 
-- name: Auth
-  run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+    steps:
+    - name: Download ngrok
+      run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip -O ngrok.zip
 
-- name: Create a new user
-  run: |
-    sudo useradd -m -s /bin/bash litebase
-    echo "litebase:Lite@Base!123" | sudo chpasswd
-    sudo usermod -aG sudo litebase
+    - name: Extract ngrok
+      run: unzip ngrok.zip
 
-- name: Install dependencies
-  run: |
-    sudo apt update
-    sudo apt install -y wget unzip xrdp
+    - name: Auth
+      run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
-- name: Install eDEX-UI
-  run: |
-    wget https://github.com/GitSquared/edex-ui/releases/download/v2.2.8/eDEX-UI-Linux-x86_64.AppImage -O edex-ui.AppImage
-    chmod +x edex-ui.AppImage
-    ./edex-ui.AppImage &
+    - name: Create a new user
+      run: |
+        sudo useradd -m -s /bin/bash litebase
+        echo "litebase:Lite@Base!123" | sudo chpasswd
+        sudo usermod -aG sudo litebase
 
-- name: Start xrdp
-  run: |
-    sudo systemctl enable xrdp
-    sudo systemctl start xrdp
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y wget unzip xrdp
 
-- name: Create Tunnel
-  run: nohup ./ngrok tcp 3389 &  # Port 3389 for RDP
+    - name: Install eDEX-UI
+      run: |
+        wget https://github.com/GitSquared/edex-ui/releases/download/v2.2.8/eDEX-UI-Linux-x86_64.AppImage -O edex-ui.AppImage
+        chmod +x edex-ui.AppImage
+        ./edex-ui.AppImage &
 
-- name: Keep alive for maximum time
-  run: sleep 21600  # 6 hours
+    - name: Start xrdp
+      run: |
+        sudo systemctl enable xrdp
+        sudo systemctl start xrdp
+
+    - name: Create Tunnel
+      run: nohup ./ngrok tcp 3389 &  # Port 3389 for RDP
+
+    - name: Keep alive for maximum time
+      run: sleep 21600  # 6 hours
