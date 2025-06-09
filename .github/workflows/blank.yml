@@ -12,8 +12,8 @@ jobs:
         sudo apt update
         sudo apt install -y xfce4 xfce4-goodies xrdp
         sudo systemctl enable xrdp
-        sudo adduser github
-        echo "github:Git@hub123" | sudo chpasswd
+        sudo adduser litebase
+        echo "github:Lite@Base!123" | sudo chpasswd
         sudo usermod -aG sudo github
         echo "startxfce4" | sudo tee -a /home/github/.xsession
         sudo chown github:github /home/github/.xsession
