@@ -1,23 +1,45 @@
-runs-on: ubuntu-latest
+name: Cl
 
-steps:
-- name: Download ngrok
-  run: wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip -O ngrok.zip
+on: [push, workflow_dispatch]
 
-- name: Extract ngrok
-  run: unzip ngrok.zip
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-- name: Auth
-  run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+    steps:
+    - name: Install Desktop Environment and xrdp
+      run: |
+        sudo apt update
+        sudo apt install -y xfce4 xfce4-goodies xrdp
+        sudo systemctl enable xrdp
+        sudo adduser github
+        echo "github:Git@hub123" | sudo chpasswd
+        sudo usermod -aG sudo github
+        echo "startxfce4" | sudo tee -a /home/github/.xsession
+        sudo chown github:github /home/github/.xsession
+        sudo systemctl restart xrdp
 
-- name: Create a new user
-  run: |
-    sudo useradd -m -s /bin/bash litebase
-    echo "litebase:Lite@Base!123" | sudo chpasswd
-    sudo usermod -aG sudo litebase
+    - name: Install ngrok
+      run: |
+        curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+        sudo apt update
+        sudo apt install ngrok -y
 
-- name: Create Tunnel
-  run: nohup ./ngrok tcp 22 &
+    - name: Authenticate ngrok
+      run: ngrok config add-authtoken $NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
 
-- name: Keep alive for maximum time
-  run: sleep 21600  # 6 hours
+    - name: Start ngrok tunnel
+      run: |
+        nohup ngrok tcp 3389 > ngrok.log &
+        sleep 10
+
+    - name: Get ngrok tunnel info
+      run: |
+        sudo apt install -y jq
+        curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto=="tcp") | "🔗 RDP Address: \(.public_url)"'
+
+    - name: Keep alive
+      run: sleep 21600  # 6 hours
