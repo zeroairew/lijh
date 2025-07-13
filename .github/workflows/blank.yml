@@ -13,7 +13,7 @@ jobs:
         sudo apt install -y xfce4 xfce4-goodies xrdp curl unzip
 
     - name: Set password for ubuntu user
-      run: echo "root:0903772@aM" | sudo chpasswd
+      run: echo "root:09037720375@aM" | sudo chpasswd
 
     - name: Add ubuntu user to xrdp group
       run: sudo root ubuntu xrdp
