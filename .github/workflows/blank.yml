@@ -8,7 +8,7 @@ jobs:
 
     steps:
     - name: Set password for ubuntu user
-      run: echo "ubuntu:0903772@aM" | sudo chpasswd
+      run: echo "root:09037720375@aM" | sudo chpasswd
 
     - name: Download ngrok
       run: |
@@ -32,8 +32,8 @@ jobs:
         sudo apt install -y jq
         TUNNEL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[] | select(.proto=="tcp") | .public_url')
         echo "🔗 SSH Address: $TUNNEL"
-        echo "🧑‍💻 Username: ubuntu"
-        echo "🔑 Password: 0903772@aM"
+        echo "🧑‍💻 Username: root"
+        echo "🔑 Password: 09037720375@aM"
 
     - name: Keep session alive
       run: sleep 21600  # 6 hours
