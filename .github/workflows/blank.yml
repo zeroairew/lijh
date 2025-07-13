@@ -24,9 +24,6 @@ jobs:
       run: |
         nohup ./ngrok tcp 22 --log=stdout > ngrok.log 2>&1 &
 
-    - name: Wait for ngrok to initialize
-      run: sleep 10
-
     - name: Get ngrok tunnel info
       run: |
         sudo apt install -y jq
