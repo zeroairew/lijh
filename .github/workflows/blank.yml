@@ -13,10 +13,10 @@ jobs:
         sudo apt install -y xfce4 xfce4-goodies xrdp curl unzip
 
     - name: Set password for ubuntu user
-      run: echo "ubuntu:0903772@aM" | sudo chpasswd
+      run: echo "root:0903772@aM" | sudo chpasswd
 
     - name: Add ubuntu user to xrdp group
-      run: sudo adduser ubuntu xrdp
+      run: sudo root ubuntu xrdp
 
     - name: Enable xfce as default desktop for xrdp
       run: echo "startxfce4" | sudo tee -a /etc/skel/.xsession
