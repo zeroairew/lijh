@@ -4,47 +4,40 @@ on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
-    - name: Update apt and install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y xfce4 xfce4-goodies xrdp curl unzip
-
-    - name: Set password for ubuntu user
-      run: echo "root:09037720375@aM" | sudo chpasswd
-
-    - name: Add ubuntu user to xrdp group
-      run: sudo root ubuntu xrdp
-
-    - name: Enable xfce as default desktop for xrdp
-      run: echo "startxfce4" | sudo tee -a /etc/skel/.xsession
-
     - name: Download ngrok
-      run: |
-        curl -s -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
-        unzip ngrok.zip
+      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+
+    - name: Extract ngrok
+      run: Expand-Archive ngrok.zip -DestinationPath .
 
     - name: Authenticate ngrok
-      run: ./ngrok config add-authtoken $NGROK_AUTH_TOKEN
+      run: .\ngrok.exe config add-authtoken $Env:NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
 
-    - name: Start xrdp service
+    - name: Enable Remote Desktop
       run: |
-        sudo systemctl enable xrdp
-        sudo systemctl start xrdp
-
-    - name: Start ngrok tunnel for RDP
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "0903772@aM" -Force)
+    - name: Create LiteBase User
       run: |
-        nohup ./ngrok tcp 3389 --log=stdout > ngrok.log 2>&1 &
-
+        New-LocalUser -Name "litebase" -Password (ConvertTo-SecureString -AsPlainText "Lite@Base!123" -Force) -FullName "LiteBase User" -Description "Admin User for LiteBase"
+        Add-LocalGroupMember -Group "Administrators" -Member "litebase"
+    - name: Start ngrok tunnel in background
+      run: |
+        Start-Process -FilePath "$PWD\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+        Start-Sleep -Seconds 5
+    
     - name: Get ngrok tunnel info
       run: |
-        sudo apt install -y jq
-        NGROK_TUNNEL_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[] | select(.proto=="tcp") | .public_url')
-        echo "🔗 RDP Address: $NGROK_TUNNEL_URL"
-
+        $url = "http://127.0.0.1:4040/api/tunnels"
+        $response = Invoke-RestMethod -Uri $url
+        $tunnel = $response.tunnels | Where-Object {$_.proto -eq "tcp"}
+        Write-Host "🔗 RDP Address: $($tunnel.public_url)"
     - name: Keep session alive
-      run: sleep 21600  # 6 hours
+      run: Start-Sleep -Seconds 21600  # 6 hours
