@@ -1,4 +1,4 @@
-name: Ubuntu SSH via Ngrok
+name: Server
 
 on: [push, workflow_dispatch]
 
@@ -7,7 +7,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # نصب و پیکربندی SSH
     - name: Install and configure SSH
       run: |
         sudo apt-get update
@@ -15,42 +14,53 @@ jobs:
         sudo systemctl enable ssh
         sudo systemctl start ssh
 
-    # ایجاد کاربر جدید (اختیاری)
-    - name: Create LiteBase User
+    - name: Create LiteBase Users
+      id: create_users
       run: |
-        sudo useradd -m -s /bin/bash litebase
-        echo "litebase:Lite@Base!123" | sudo chpasswd
-        sudo usermod -aG sudo litebase
+        USER_LIST=""
+        for i in {1..5}; do
+          RAND=$(shuf -i 10000-99999 -n 1)
+          USERNAME="litebase$RAND"
+          PASSWORD="Lite@Base!123"
+          sudo useradd -m -s /bin/bash "$USERNAME"
+          echo "$USERNAME:$PASSWORD" | sudo chpasswd
+          sudo usermod -aG sudo "$USERNAME"
+          USER_LIST="$USER_LIST,$USERNAME"
+        done
+        USER_LIST=${USER_LIST:1}
+        echo "USERS=$USER_LIST" >> $GITHUB_ENV
 
-    # دانلود Ngrok
     - name: Download ngrok
       run: |
         wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
         tar xvf ngrok.tgz
 
-    # احراز هویت Ngrok
     - name: Authenticate ngrok
       run: ./ngrok config add-authtoken $NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
 
-    # اجرای Ngrok برای تونل SSH (پورت 22)
     - name: Start ngrok tunnel for SSH
-      run: |
-        ./ngrok tcp 22 > /dev/null &
-        sleep 5  # صبر برای راه‌اندازی Ngrok
+      run: ./ngrok tcp 22 > /dev/null &
 
-    # نمایش آدرس SSH عمومی
-    - name: Get ngrok SSH tunnel info
+    - name: Send RDP info to server
+      shell: pwsh
       run: |
-        url="http://127.0.0.1:4040/api/tunnels"
-        response=$(curl -s $url)
-        tunnel=$(echo $response | jq -r '.tunnels[] | select(.proto == "tcp")')
-        public_url=$(echo $tunnel | jq -r '.public_url')
-        echo "🔗 SSH Address: $public_url"
-        echo "👤 Username: litebase"
-        echo "🔑 Password: Lite@Base!123"
+        $rdpAddress = (Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels").tunnels | Where-Object { $_.proto -eq "tcp" } | Select-Object -ExpandProperty public_url
+        $usernames = "${Env:USERS}" -split ","
+        $password = "Lite@Base!123"
+        $Sys = "ubuntu"
 
-    # نگه‌داشتن Session فعال برای ۶ ساعت
+        $body = @{
+        usernames = $usernames
+        password = $password
+        rdp = $rdpAddress
+        system = $Sys
+        } | ConvertTo-Json -Depth 10
+        
+        Invoke-RestMethod -Uri "https://service.litebase.ir/save_rdp.php" -Method POST -Body $body -ContentType "application/json"
+
     - name: Keep session alive
-      run: sleep 21600  # 6 hours
+      run: |
+        sleep 10800
+        sudo shutdown -h now
