@@ -1,66 +1,64 @@
-name: Server
+name: Cl
 
 on: [push, workflow_dispatch]
 
 jobs:
-  setup-ssh:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
 
     steps:
-    - name: Install and configure SSH
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openssh-server
-        sudo systemctl enable ssh
-        sudo systemctl start ssh
-
-    - name: Create LiteBase Users
-      id: create_users
-      run: |
-        USER_LIST=""
-        for i in {1..5}; do
-          RAND=$(shuf -i 10000-99999 -n 1)
-          USERNAME="litebase$RAND"
-          PASSWORD="Lite@Base!123"
-          sudo useradd -m -s /bin/bash "$USERNAME"
-          echo "$USERNAME:$PASSWORD" | sudo chpasswd
-          sudo usermod -aG sudo "$USERNAME"
-          USER_LIST="$USER_LIST,$USERNAME"
-        done
-        USER_LIST=${USER_LIST:1}
-        echo "USERS=$USER_LIST" >> $GITHUB_ENV
-
     - name: Download ngrok
-      run: |
-        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
-        tar xvf ngrok.tgz
+      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+
+    - name: Extract ngrok
+      run: Expand-Archive ngrok.zip -DestinationPath .
 
     - name: Authenticate ngrok
-      run: ./ngrok config add-authtoken $NGROK_AUTH_TOKEN
+      run: .\ngrok.exe config add-authtoken $Env:NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: 2domMyUkChGDUi8XXsckGd8N4Ay_3rA6NmKnNNJGWxX7qqcN1
 
-    - name: Start ngrok tunnel for SSH
-      run: ./ngrok tcp 22 > /dev/null &
-
-    - name: Send RDP info to server
-      shell: pwsh
+    - name: Enable Remote Desktop
       run: |
-        $rdpAddress = (Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels").tunnels | Where-Object { $_.proto -eq "tcp" } | Select-Object -ExpandProperty public_url
-        $usernames = "${Env:USERS}" -split ","
-        $password = "Lite@Base!123"
-        $Sys = "ubuntu"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "Lite@Base!0549749657987465" -Force)
 
-        $body = @{
-        usernames = $usernames
-        password = $password
-        rdp = $rdpAddress
-        system = $Sys
-        } | ConvertTo-Json -Depth 10
-        
-        Invoke-RestMethod -Uri "https://service.litebase.ir/save_rdp.php" -Method POST -Body $body -ContentType "application/json"
+    - name: Create single LiteBase user
+      id: create_user
+      run: |
+        $rand = Get-Random -Minimum 10000 -Maximum 99999
+        $username = "litebase$rand"
+        $password = "Lite@Base!123"
+
+        New-LocalUser -Name $username -Password (ConvertTo-SecureString -AsPlainText $password -Force) `
+          -FullName "LiteBase User" -Description "Auto User"
+
+        Add-LocalGroupMember -Group "Administrators" -Member $username
+
+        echo "USERNAME=$username" >> $env:GITHUB_ENV
+        echo "PASSWORD=$password" >> $env:GITHUB_ENV
+
+    - name: Start ngrok tunnel
+      run: |
+        Start-Process -FilePath "$PWD\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+        Start-Sleep -Seconds 5
+
+    - name: Show RDP information (OUTPUT)
+      run: |
+        $rdpAddress = (Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels").tunnels |
+          Where-Object { $_.proto -eq "tcp" } |
+          Select-Object -ExpandProperty public_url
+
+        Write-Host "================ RDP INFO ================"
+        Write-Host "SYSTEM   : Windows"
+        Write-Host "RDP      : $rdpAddress"
+        Write-Host "USERNAME : $Env:USERNAME"
+        Write-Host "PASSWORD : $Env:PASSWORD"
+        Write-Host "=========================================="
 
     - name: Keep session alive
       run: |
-        sleep 10800
-        sudo shutdown -h now
+        Start-Sleep -Seconds 10800
+        Stop-Computer -Force
