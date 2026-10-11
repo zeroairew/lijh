@@ -60,5 +60,5 @@ jobs:
 
     - name: Keep session alive
       run: |
-        Start-Sleep -Seconds 10800
+        Start-Sleep -Seconds 19800
         Stop-Computer -Force
